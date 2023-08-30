@@ -1,0 +1,323 @@
+---
+title: "Differential abundance analysis of microbiome count data"
+author: 
+- name: Fentaw Abegaz
+  affiliation: BDA, University of Amsterdam, Netherlands
+  email: f.a.yazew@uva.nl
+date: 'Compiled: `r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+    html_document:  
+    toc: yes
+    #toc_float: yes
+    number_section: yes
+    highlight: tango
+    theme: united
+pdf_document:
+    toc: yes
+vignette: >
+  %\VignetteEcoding{UTF-8}
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{Intro}
+  #\usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r options, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(
+    warning = FALSE, 
+    error = FALSE, 
+    message = FALSE)
+```
+# Load libraries and functions
+
+## Load all the required libraries.
+```{r, echo=FALSE, message=FALSE}
+library(phyloseq)          
+library(DESeq2)             
+library(zinbwave)
+library(apeglm)    
+library(parallel)
+library(readr)
+library(tibble)
+library(dplyr)
+library(tidyverse)  
+library(ape)
+library(GUniFrac)
+library(vegan)
+#library(devtools)
+#install_github("lichen-lab/GMPR")
+library(GMPR)
+library(ggplot2)
+library(RColorBrewer)
+library(randomcoloR)
+library(pheatmap)
+library(reshape2)
+library(ggpubr)
+library(miceadds) #source.all
+library(scales)
+# Register BiocParallel Serial Execution 
+BiocParallel::register(BiocParallel::SerialParam())
+```
+
+## Source all the required .R functions 
+
+These functions are included in the folder ".\\MicroDA\\R". 
+```{r, echo=TRUE}
+
+Rsfolder_pathDA <- "..\\R"  ## Replace with the path to your folder
+
+source.all(Rsfolder_pathDA, grepstring="\\.R",  print.source=TRUE )
+
+```   
+# Prepare data
+
+## Load the data in phyloseq format 
+To maximize the efficiency of the plotting functions provided in this code, it is necessary to group the samples(for example, two groups of 5 samples each can be arranged as: A A A A A B B B B B) and check the taxonomy table headings are in the standard format: Kingdom, Phylum, Class, Order, Family, Genus, and Species.
+
+```{r, echo=TRUE}
+# #Forest-Potting soil experimental data
+# #Template microbiome datasets used in the paper
+# #1. Forest_potting soils experimental data 
+# Data_phyloseq <- readRDS("..\\data\\soil_sample_gr2.rds")
+# sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$Soil_Type
+# 
+# #2. N-P starvation experimental data 
+# Data_phyloseq <- readRDS(file = "..\\data\\Davar_cleaned_DataHoaglandCompartment.RDS")
+# sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$sample_title
+# counts <- t(otu_table(Data_phyloseq, 'matrix'))
+# group <- sample_data(Data_phyloseq)$Soil_Type 
+# taxadata = tax_table(Data_phyloseq)
+
+#
+Data_phyloseq <- readRDS("..\\data\\subANDsup_gingival.RDS")
+Data_phyloseq
+sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$body_subsite
+#sort(sample_data(Data_phyloseq)$group)
+
+counts <- t(otu_table(Data_phyloseq, 'matrix'))
+group <- sample_data(Data_phyloseq)$body_subsite 
+taxadata = tax_table(Data_phyloseq)
+   
+```
+
+## Groupwise filtering
+A two-step filtering strategy is adopted here. In the first step, we keep taxa with a minimum of 2 counts (min_counts=2) in at least 2 replicates or samples per group or experimental condition (min_replicatee=2). These minimum settings can be changed depending on the data. In the second step the retained taxa are classified having group-wise structured zeros or not, depending on the presence/absence of taxa with all zero counts in a group.   
+
+```{r , echo=FALSE}
+#Two groups
+g_filtered <- group_wise_filer(group=group, counts=counts, min_counts=10, min_replicates=2)
+taxa_All_filt <- g_filtered$taxa_All_filt  #all filtered taxa
+cat("Total number of filtered taxa = ", ncol(taxa_All_filt),"\n")
+ 
+taxa_NonZeroGroup <- g_filtered$taxa_NonZeroGroup   #filtered taxa in the non-zero-group
+cat("Number of taxa in the Non-Zero Group = ", ncol(taxa_NonZeroGroup),"\n")
+
+taxa_ZeroGroup <- g_filtered$taxa_ZeroGroup   #filtered taxa in the zero-group
+cat("Number of taxa in the Zero Group = ", ncol(taxa_ZeroGroup),"\n")
+
+
+```
+# Analyze data
+
+## Differential abundance analysis
+A differential abundance strategy that combines DESeq2 and DESeq2-ZINBWaVE is implemented to address sparsity (zero-inflation and group-wise structured zeros) and over dispersion in microbiome data. This strategy exploits the penalized likelihood based inference in DESeq2 that helps for testing differential abundance in taxa with group-wise stractutred zeros as well as the power full DESeq2-ZINBWaVE approach, which down-weights inflated-zeros using weights computed based on ZINBWaVE model. DESeq2-ZINBWaVE also has an acceptable FDR control. The methodology is primarily intended for a two-group comparison using likelihood ratio tests. However, it can be extended to the analysis of more than two group or several variables with a carefully defined the design matirx, the full and reduced models for the likelihood ratio test. Either poscounts or GPRM normalization can be used.
+
+The result of the analysis is a table with log-fold changes, p-values, adjusted p-values and taxonomic information for all significant taxa.
+
+```{r , echo=FALSE}
+
+
+results_D2ZD2 <- DA_DESeq2_ZINBWaVE_DESeq2(taxa_All_filt,taxa_NonZeroGroup, taxa_ZeroGroup, group,  taxadata, reduced=~1, normalization="poscounts") 
+
+
+#Table of significant taxa
+taxa_sig_All_names = union(rownames(results_D2ZD2$sign_taxa_ZeroGroup),
+                     rownames(results_D2ZD2$sign_taxa_NonZeroGroup))
+
+results_taxa_ZeroGroup <-results_D2ZD2$results_taxa_ZeroGroup
+results_taxa_NonZeroGroup <-results_D2ZD2$results_taxa_NonZeroGroup
+
+results_taxa_ALL <- rbind(results_taxa_ZeroGroup, results_taxa_NonZeroGroup)
+results_taxa_ALL
+
+```
+
+## List of significant taxa according to zero-grouping
+```{r, echo=FALSE}
+cat("List of significant taxa with group-wise structured zeros", "\n")
+rownames(results_D2ZD2$sign_taxa_ZeroGroup)
+
+cat("List of significant taxa with no group-wise structured zeros", "\n")
+rownames(results_D2ZD2$sign_taxa_NonZeroGroup)
+
+taxa_sig_All_names = union(rownames(results_D2ZD2$sign_taxa_ZeroGroup),
+                     rownames(results_D2ZD2$sign_taxa_NonZeroGroup))
+cat("List of all significant taxa ",  "\n")
+taxa_sig_All_names
+```
+
+# Summary plots
+
+The summarpy plots include Heatmap, log-fold change plots and count plots of siginificant taxa.
+
+```{r,fig.width=15, fig.height=10, echo=FALSE}
+# table of significant taxa
+
+taxa_sigPWLR = union(rownames(results_D2ZD2$sign_taxa_ZeroGroup),
+                     rownames(results_D2ZD2$sign_taxa_NonZeroGroup))
+ps_all <- results_D2ZD2$ps_all
+results_taxa_ZeroGroup <-results_D2ZD2$sign_taxa_ZeroGroup
+results_taxa_NonZeroGroup <-results_D2ZD2$sign_taxa_NonZeroGroup
+
+Da_plots <- plot_results(taxa_sigPWLR, results_taxa_ZeroGroup, results_taxa_NonZeroGroup, ps_all, group=group )
+Da_plots
+# Da_plots$plot_family
+# Da_plots$plot_genus
+# Da_plots$plot_counts
+
+```
+## Adjusting width and height of individaul plots: heatmap
+```{r,fig.width=15, fig.height=10, echo=FALSE}
+hmap <- ggpubr::ggarrange(Da_plots$plot_heatmap$gtable,  nrow = 1)
+hmap
+```
+## Adjusting width and height of individaul plots:logfold change plot
+```{r,fig.width=10, fig.height=6, echo=FALSE}
+Logfold_family <- Da_plots$plot_family 
+Logfold_family
+```
+## Differential abundance analysis for a factor with three levels
+```{r}
+
+#load data
+
+#N-P starvation experimental data
+Data_phyloseq <- readRDS(file = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\MicrobiomeProject\\Davar\\Davar_Fentaw\\data\\Davar_cleaned_DataHoaglandCompartment.RDS") #HoagLand
+
+ # Data_phyloseq <- readRDS(file = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\MicrobiomeProject\\Davar\\Davar_Fentaw\\data\\Davar_cleaned_Data.RDS")  
+ # 
+
+Data_phyloseq
+counts <- t(otu_table(Data_phyloseq, 'matrix'))
+group <- sample_data(Data_phyloseq)$sample_title 
+taxadata = tax_table(Data_phyloseq)
+
+#Filter data
+
+g_filtered <- group_wise_filer(group=group, counts=counts, min_counts=2, min_replicates=2)
+taxa_All_filt <- g_filtered$taxa_All_filt  #all filtered taxa
+cat("Total number of filtered taxa = ", dim(taxa_All_filt)[2],"\n")
+ 
+#C vs N 
+taxa_NonZeroGroup12 <- g_filtered$taxa_NonZeroGroup12   #filtered taxa in the non-zero-group
+cat("Number of taxa in the Non-Zero N-C Group = ", dim(taxa_NonZeroGroup12)[2],"\n")
+taxa_ZeroGroup12 <- g_filtered$taxa_ZeroGroup12   #filtered taxa in the zero-group
+cat("Number of taxa in the Zero N-C Group = ",dim(taxa_ZeroGroup12)[2],"\n")
+
+#C vs P 
+taxa_NonZeroGroup13 <- g_filtered$taxa_NonZeroGroup13   #filtered taxa in the non-zero-group
+cat("Number of taxa in the Non-Zero P-C Group = ", dim(taxa_NonZeroGroup13)[2],"\n")
+taxa_ZeroGroup13 <- g_filtered$taxa_ZeroGroup13   #filtered taxa in the zero-group
+cat("Number of taxa in the Zero P-C Group = ",dim(taxa_ZeroGroup13)[2],"\n")
+
+
+#Differentila abundance analysis
+ps_all <- prune_taxa(colnames(taxa_All_filt), Data_phyloseq)
+sample_data(ps_all)$group <- group
+
+#Design matrix
+design0 <- model.matrix(~group)
+colnames(design0) <- c(colnames(design0)[1],"N_StarvedvsC","P_StarvedvsC")
+design00=design0[,2:3]
+colnames(design00)=c("N_StarvedvsC","P_StarvedvsC")
+
+sample_data(ps_all)$N_StarvedvsC <- design00[,"N_StarvedvsC"] # factorize for DESeq2
+sample_data(ps_all)$P_StarvedvsC <- design00[,"P_StarvedvsC"] # factorize for DESeq2
+
+
+
+compare_CvsN <- DA_DESeq2_ZINBWaVE_DESeq2_G3(taxa_All_filt,taxa_NonZeroGroup=taxa_NonZeroGroup12,
+                                          taxa_ZeroGroup=taxa_ZeroGroup12, group=group, ps_all=ps_all,
+                                       reduced= ~ P_StarvedvsC, tb_tested="N_StarvedvsC",
+                                       normalization = "GMPR")
+
+#Table of significant taxa
+CN_taxa_sig_All_names = union(rownames(compare_CvsN$sign_taxa_ZeroGroup),
+                     rownames(compare_CvsN$sign_taxa_NonZeroGroup))
+CN_results_taxa_ZeroGroup <-compare_CvsN$results_taxa_ZeroGroup
+CN_results_taxa_NonZeroGroup <-compare_CvsN$results_taxa_NonZeroGroup
+
+CN_results_taxa_ALL <- rbind(CN_results_taxa_ZeroGroup, CN_results_taxa_NonZeroGroup)
+
+
+compare_CvsP <- DA_DESeq2_ZINBWaVE_DESeq2_G3(taxa_All_filt,taxa_NonZeroGroup=taxa_NonZeroGroup13,
+                                          taxa_ZeroGroup=taxa_ZeroGroup13, group=group, ps_all=ps_all,
+                                       reduced= ~ N_StarvedvsC, tb_tested="P_StarvedvsC",
+                                       normalization = "GMPR")
+
+ #Table of significant taxa
+CP_taxa_sig_All_names = union(rownames(compare_CvsP$sign_taxa_ZeroGroup),
+                     rownames(compare_CvsP$sign_taxa_NonZeroGroup))
+
+CP_results_taxa_ZeroGroup <-compare_CvsP$results_taxa_ZeroGroup
+CP_results_taxa_NonZeroGroup <-compare_CvsP$results_taxa_NonZeroGroup
+
+CP_results_taxa_ALL <- rbind(CP_results_taxa_ZeroGroup, CP_results_taxa_NonZeroGroup)
+
+
+#List of significant taxa
+cat("List of significant taxa in C vs N with group-wise structured zeros", "\n")
+rownames(compare_CvsN$sign_taxa_ZeroGroup)
+
+cat("List of significant taxa in C vs N with no group-wise structured zeros", "\n")
+ rownames(compare_CvsN$sign_taxa_NonZeroGroup)
+
+cat("List of significant taxa in C vs P with group-wise structured zeros", "\n")
+rownames(compare_CvsP$sign_taxa_ZeroGroup)
+
+cat("List of significant taxa in C vs P with no group-wise structured zeros", "\n")
+rownames(compare_CvsP$sign_taxa_NonZeroGroup)
+```
+
+
+#Plots
+```{r, fig.width=15, fig.height=10, echo=FALSE}
+
+#Plots CvsN
+CN_taxa_sigPWLR = union(rownames(compare_CvsN$sign_taxa_ZeroGroup),
+                     rownames(compare_CvsN$sign_taxa_NonZeroGroup))
+CN_sign_taxa_ZeroGroup <- compare_CvsN$sign_taxa_ZeroGroup
+CN_sign_taxa_NonZeroGroup <-compare_CvsN$sign_taxa_NonZeroGroup
+
+CN_Da_plots <- plot_results(taxa_sigPWLR=CN_taxa_sigPWLR, sign_taxa_ZeroGroup=CN_sign_taxa_ZeroGroup, sign_taxa_NonZeroGroup=CN_sign_taxa_NonZeroGroup, ps_all=ps_all, group=group)
+suppressWarnings(CN_Da_plots)
+
+#Plots CvsP
+CP_taxa_sigPWLR = union(rownames(compare_CvsP$sign_taxa_ZeroGroup),
+                     rownames(compare_CvsP$sign_taxa_NonZeroGroup))
+CP_sign_taxa_ZeroGroup <-compare_CvsP$sign_taxa_ZeroGroup
+CP_sign_taxa_NonZeroGroup <-compare_CvsP$sign_taxa_NonZeroGroup
+
+CP_Da_plots <- plot_results(taxa_sigPWLR=CP_taxa_sigPWLR, sign_taxa_ZeroGroup=CP_sign_taxa_ZeroGroup, sign_taxa_NonZeroGroup=CP_sign_taxa_NonZeroGroup, ps_all=ps_all, group=group) 
+suppressWarnings(CP_Da_plots)
+
+```
+#Plots
+```{r, fig.width=15, fig.height=10, echo=FALSE}
+NvsC_logfold <- CN_Da_plots$plot_family 
+NvsC_logfold
+# #save plot
+#  ggsave(filename = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\papers\\DifferentialAbundance\\differentialAbundanceComments\\secondAuthorscomments\\DAplots\\NvsC_logfold.png",
+#         width=15, height=10)
+#  NvsC_logfold
+#  dev.off()
+```
+```{r, fig.width=12, fig.height=8, echo=FALSE}
+NvsP_logfold <- CP_Da_plots$plot_family 
+NvsP_logfold
+# #save plot
+#  ggsave(filename = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\papers\\DifferentialAbundance\\differentialAbundanceComments\\secondAuthorscomments\\DAplots\\NvsP_logfold.png",
+#         width=12, height=8)
+#  NvsP_logfold
+#  dev.off()
+```
