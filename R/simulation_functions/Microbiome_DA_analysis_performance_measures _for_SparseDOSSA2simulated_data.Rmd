@@ -83,8 +83,8 @@ source.all(Rsfolder_pathSim, grepstring="\\.R",  print.source=TRUE )
 Collect the values set for simulation senarios. The number of microbes (nMicrobes) and read deapth are set from the template dataset. A range of total sample sizes from (ns) in the two groups or experimental conditions and effect sizes or log-fold changes. 
 
 ```{r, echo=TRUE}
-nMicrobes <- nMicrobes# 717 #303
-readDepth<- readDepth #3534 #1883
+nMicrobes <- nMicrobes #303
+readDepth<- readDepth  #1883
 
 es=es #c(0.5,1,2)   #effect sizes
 ns=c(10,20,50,100,200) #total samlple sizes
@@ -127,7 +127,7 @@ names(rResults1All)[names(rResults1All)=="nSubjects"] <- "Samples"
 ```{r, fig.width=20, fig.height=10, fig.wide = TRUE, echo=TRUE}
 
 #FDR
-rResults1All2=subset(rResults1All,effectSize==3)
+rResults1All2=subset(rResults1All,effectSize==0.5)
 e1=ggplot(rResults1All2, aes(methodName , FDR, color=Samples)) +    
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+
@@ -137,7 +137,7 @@ e1=ggplot(rResults1All2, aes(methodName , FDR, color=Samples)) +
   ggtitle("Effect size = 0.5") 
 
 
-rResults1All5=subset(rResults1All,effectSize==4)
+rResults1All5=subset(rResults1All,effectSize==1)
 e2=ggplot(rResults1All5, aes(methodName , FDR, color=Samples)) +    
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+
@@ -146,7 +146,7 @@ e2=ggplot(rResults1All5, aes(methodName , FDR, color=Samples)) +
   xlab("Methods") + ylab("FDR") +
   ggtitle("Effect size = 1")
 
-rResults1All10=subset(rResults1All,effectSize==5)
+rResults1All10=subset(rResults1All,effectSize==2)
 e5=ggplot(rResults1All10, aes(methodName , FDR, color=Samples)) +    
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+
@@ -158,7 +158,7 @@ e5=ggplot(rResults1All10, aes(methodName , FDR, color=Samples)) +
 
 
 #Sensitivity
-rResults1All2=subset(rResults1All,effectSize==3)
+rResults1All2=subset(rResults1All,effectSize==0.5)
 s1=ggplot(rResults1All2, aes(methodName , Sensitivity, color=Samples)) +    
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+
@@ -167,7 +167,7 @@ s1=ggplot(rResults1All2, aes(methodName , Sensitivity, color=Samples)) +
   xlab("Methods") + ylab("Sensitivity")+
   ggtitle("Effect size = 0.5")
 
-rResults1All5=subset(rResults1All,effectSize==4)
+rResults1All5=subset(rResults1All,effectSize==1)
 s2=ggplot(rResults1All5, aes(methodName , Sensitivity, color=Samples)) +   
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+
@@ -176,7 +176,7 @@ s2=ggplot(rResults1All5, aes(methodName , Sensitivity, color=Samples)) +
   xlab("Methods") + ylab("Sensitivity")+
   ggtitle("Effect size = 1")
 
-rResults1All10=subset(rResults1All,effectSize==5)
+rResults1All10=subset(rResults1All,effectSize==2)
 s5=ggplot(rResults1All10, aes(methodName , Sensitivity, color=Samples)) +    
   geom_point(position = position_jitterdodge()) +
   geom_boxplot(alpha=0.6)+

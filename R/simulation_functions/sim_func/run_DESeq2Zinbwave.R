@@ -59,26 +59,7 @@ fit.DESeq2Zinbwave<-function(features, metadata, libSize, ID, transformation, Mu
   #scr <- computeSumFactors(x)         
         ## Warning in FUN(...): encountered negative size factor estimates
   #sizeFactors(x) <- sizeFactors(scr)
-    #Note that we are returned a warning that some of the values are negative. See the description of this issue in the scran manual for computeSumFactors. Typically, I have found that more extensive filtering resolves this issue. Here we will proceed with the estimated positive values, but aware of the limitation/warning.
-  # dds_zinb <- DESeq(dds_zinb, test="LRT", reduced=~1, sfType="poscounts",
-  #                   minmu=1e-6, minReplicatesForReplace=3, fitType = "local") #minReplicatesForReplace=Inf
-  
-  # countsp=as.data.frame(features)
-  # #dim(counts)
-  # pdata = metadata
-  # countsp$Run=row.names(countsp)
-  # pdata$Run=row.names(countsp)
-  # row.names(countsp) <- NULL
-  # row.names(pdata) <- NULL
-  # pdata <- column_to_rownames(pdata, "Run")
-  # countsp <- column_to_rownames(countsp, "Run")
-  # physeqSE <- SummarizedExperiment(assays=SimpleList(counts=t(countsp)), colData = pdata)
-  # #physeqf
-  # zinbmodel <- zinbFit(physeqSE, 
-  #                      K = 0,
-  #                      epsilon = 1e10, commondispersion = TRUE, verbose = FALSE, BPPARAM = SerialParam())
-  # weights <- computeExactWeights(model = zinbmodel,x = t(features))
-  # 
+   
   weights[which(weights<1e-6)] <- 1e-06
   assays(x)[["weights"]] = weights
   

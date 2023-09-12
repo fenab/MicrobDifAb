@@ -31,7 +31,7 @@ knitr::opts_chunk$set(
 # Load libraries and functions
 
 ## Load all the required libraries.
-```{r, echo=FALSE, message=FALSE}
+```{r, echo=TRUE, message=FALSE}
 library(phyloseq)          
 library(DESeq2)             
 library(zinbwave)
@@ -61,7 +61,7 @@ BiocParallel::register(BiocParallel::SerialParam())
 
 ## Source all the required .R functions 
 
-These functions are included in the folder ".\\MicroDA\\R". 
+These functions are included in the folder ".\\MicrobDifAb\\R". 
 ```{r, echo=TRUE}
 
 Rsfolder_pathDA <- "..\\R"  ## Replace with the path to your folder
@@ -78,24 +78,12 @@ To maximize the efficiency of the plotting functions provided in this code, it i
 # #Forest-Potting soil experimental data
 # #Template microbiome datasets used in the paper
 # #1. Forest_potting soils experimental data 
-# Data_phyloseq <- readRDS("..\\data\\soil_sample_gr2.rds")
-# sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$Soil_Type
+ Data_phyloseq <- readRDS("..\\data\\soil_sample_gr2.rds")
+ sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$Soil_Type
+ Data_phyloseq
 # 
-# #2. N-P starvation experimental data 
-# Data_phyloseq <- readRDS(file = "..\\data\\Davar_cleaned_DataHoaglandCompartment.RDS")
-# sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$sample_title
-# counts <- t(otu_table(Data_phyloseq, 'matrix'))
-# group <- sample_data(Data_phyloseq)$Soil_Type 
-# taxadata = tax_table(Data_phyloseq)
-
-#
-Data_phyloseq <- readRDS("..\\data\\subANDsup_gingival.RDS")
-Data_phyloseq
-sample_data(Data_phyloseq)$group <- sample_data(Data_phyloseq)$body_subsite
-#sort(sample_data(Data_phyloseq)$group)
-
 counts <- t(otu_table(Data_phyloseq, 'matrix'))
-group <- sample_data(Data_phyloseq)$body_subsite 
+group <- sample_data(Data_phyloseq)$Soil_Type
 taxadata = tax_table(Data_phyloseq)
    
 ```
@@ -103,9 +91,9 @@ taxadata = tax_table(Data_phyloseq)
 ## Groupwise filtering
 A two-step filtering strategy is adopted here. In the first step, we keep taxa with a minimum of 2 counts (min_counts=2) in at least 2 replicates or samples per group or experimental condition (min_replicatee=2). These minimum settings can be changed depending on the data. In the second step the retained taxa are classified having group-wise structured zeros or not, depending on the presence/absence of taxa with all zero counts in a group.   
 
-```{r , echo=FALSE}
+```{r , echo=TRUE}
 #Two groups
-g_filtered <- group_wise_filer(group=group, counts=counts, min_counts=10, min_replicates=2)
+g_filtered <- group_wise_filer(group=group, counts=counts, min_counts=2, min_replicates=2)
 taxa_All_filt <- g_filtered$taxa_All_filt  #all filtered taxa
 cat("Total number of filtered taxa = ", ncol(taxa_All_filt),"\n")
  
@@ -124,10 +112,11 @@ A differential abundance strategy that combines DESeq2 and DESeq2-ZINBWaVE is im
 
 The result of the analysis is a table with log-fold changes, p-values, adjusted p-values and taxonomic information for all significant taxa.
 
-```{r , echo=FALSE}
+## Differential abundance analysis for a factor with two levels
+```{r , echo=TRUE}
 
 
-results_D2ZD2 <- DA_DESeq2_ZINBWaVE_DESeq2(taxa_All_filt,taxa_NonZeroGroup, taxa_ZeroGroup, group,  taxadata, reduced=~1, normalization="poscounts") 
+results_D2ZD2 <- DA_DESeq2_ZINBWaVE_DESeq2(taxa_All_filt,taxa_NonZeroGroup, taxa_ZeroGroup, group,  taxadata, reduced=~1, normalization="GMPR") 
 
 
 #Table of significant taxa
@@ -143,7 +132,7 @@ results_taxa_ALL
 ```
 
 ## List of significant taxa according to zero-grouping
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 cat("List of significant taxa with group-wise structured zeros", "\n")
 rownames(results_D2ZD2$sign_taxa_ZeroGroup)
 
@@ -160,7 +149,7 @@ taxa_sig_All_names
 
 The summarpy plots include Heatmap, log-fold change plots and count plots of siginificant taxa.
 
-```{r,fig.width=15, fig.height=10, echo=FALSE}
+```{r,fig.width=15, fig.height=10, echo=TRUE}
 # table of significant taxa
 
 taxa_sigPWLR = union(rownames(results_D2ZD2$sign_taxa_ZeroGroup),
@@ -186,17 +175,15 @@ hmap
 Logfold_family <- Da_plots$plot_family 
 Logfold_family
 ```
-## Differential abundance analysis for a factor with three levels
+
+# Differential abundance analysis for a factor with three levels
 ```{r}
 
 #load data
 
-#N-P starvation experimental data
-Data_phyloseq <- readRDS(file = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\MicrobiomeProject\\Davar\\Davar_Fentaw\\data\\Davar_cleaned_DataHoaglandCompartment.RDS") #HoagLand
+#2. N-P starvation experimental data 
 
- # Data_phyloseq <- readRDS(file = "C:\\Users\\fenta\\Documents\\OneDrive\\Documents\\2021\\Amsterdam\\MicrobiomeProject\\Davar\\Davar_Fentaw\\data\\Davar_cleaned_Data.RDS")  
- # 
-
+Data_phyloseq <- readRDS(file = "..\\data\\NPstarvation_cleaned_DataHoaglandCompartment.rds")
 Data_phyloseq
 counts <- t(otu_table(Data_phyloseq, 'matrix'))
 group <- sample_data(Data_phyloseq)$sample_title 
@@ -280,7 +267,7 @@ rownames(compare_CvsP$sign_taxa_NonZeroGroup)
 ```
 
 
-#Plots
+# Plots
 ```{r, fig.width=15, fig.height=10, echo=FALSE}
 
 #Plots CvsN
@@ -302,7 +289,7 @@ CP_Da_plots <- plot_results(taxa_sigPWLR=CP_taxa_sigPWLR, sign_taxa_ZeroGroup=CP
 suppressWarnings(CP_Da_plots)
 
 ```
-#Plots
+# Plots
 ```{r, fig.width=15, fig.height=10, echo=FALSE}
 NvsC_logfold <- CN_Da_plots$plot_family 
 NvsC_logfold

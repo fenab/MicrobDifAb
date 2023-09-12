@@ -53,7 +53,7 @@ run_performance_simulations <- function(es, ns, nIterations,
       normParams<-c('CSS', 'CLR', 'RLE', 'TMM', 'TSS')
       transfParams<-c('AST', 'LOG', 'LOGIT')
 
-      #model_iter = modelParams
+      modelParams <- model_iter
 
       methOutput=list()
 

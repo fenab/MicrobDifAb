@@ -39,7 +39,7 @@ workingDirectory <- getwd()
 
 
 ## Load all the required libraries
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 library(pacman)
 library(devtools)
 library(pkgmaker)
@@ -71,33 +71,13 @@ source.all(Rsfolder_pathSim, grepstring="\\.R",  print.source=TRUE )
 
 ```
 ## Load template data in phyloseq format
-Here we used a subset of the metagenome shotgun sequencing data from the Human Microbiome Project (HMP-2012), which include 5 supragingival and 5 subgingival plaque samples from the oral cavity[1, 2].
 
-1. 	Calgaro M, Romualdi C, Waldron L, Risso D, Vitulo N. Assessment of statistical methods from single cell,       bulk RNA-seq, and metagenomics applied to microbiome data. Genome Biol. 2020;21: 191.                  
-    doi:10.1186/s13059-020-02104-1
-
-2. 	The Human Microbiome Project Consortium. Structure, function and diversity of the healthy human microbiome.     Nature. 2012;486: 207-214. doi:10.1038/nature11234
-
-```{r, echo=FALSE}
-physeqLOAD <- readRDS("..\\data\\subANDsup_gingival_species.RDS")
-
-grp1 = "subgingival_plaque"
-grp2 = "supragingival_plaque"
-physeqLOAD@sam_data$group = factor(physeqLOAD@sam_data$body_subsite,levels = c(grp1,grp2),labels = c("grp1","grp2"))
-taxadata <- tax_table(physeqLOAD)  
-
-counts <- t(otu_table(physeqLOAD, 'matrix'))
-group <- sample_data(physeqLOAD)$group
-#taxadata <- tax_table(physeqLOAD)  
-
+```{r, echo=TRUE}
 # #Template microbiome datasets used in the paper
-# #1. Forest_potting soils experimental data 
-# physeqLOAD <- readRDS("..\\data\\soil_sample_gr2.rds")
-# sample_data(physeqLOAD)$group <- sample_data(physeqLOAD)$Soil_Type
-# 
-# #2. N-P starvation experimental data 
-# physeqLOAD <- readRDS(file = "..\\data\\Davar_cleaned_DataHoaglandCompartment.RDS")
-# sample_data(physeqLOAD)$group <- sample_data(physeqLOAD)$sample_title
+# Forest_potting soils experimental data 
+ physeqLOAD <- readRDS("..\\..\\data\\soil_sample_gr2.rds")
+ sample_data(physeqLOAD)$group <- sample_data(physeqLOAD)$Soil_Type
+ physeqLOAD
 
 ```
 
@@ -122,8 +102,7 @@ if(is.null(zeroGroup_taxa)) cat("number of taxa with groupwise structured zeros 
 ## Set parameters for the simulations
 ```{r, echo=FALSE}
 #Set the number of spike-in and randomly sample from the spike-in candidates
-nspike<- 30 #70 #50 20 #(lessthan or equal to ncol(features_otu))
-
+nspike<- 30  #(lessthan or equal to ncol(features_otu))
 #set a vector of log-fold changes
 es <- c(0.5,1, 2)
 #set a vector of total sample sizes

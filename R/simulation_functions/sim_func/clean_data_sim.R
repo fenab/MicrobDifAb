@@ -50,8 +50,12 @@ clean_data_sim <- function(physeqLOAD)
 
   #ex_counts1 <- features[,filti[[1]]]
   drop1 <- filt_fcols #[[1]]
-  if(length(drop1)==0) ex_features <- NULL
-  else ex_features <- features_otu1[, drop1]
+  if(length(drop1)==0) {
+    ex_features <- NULL
+    }
+  else {
+    ex_features <- features_otu1[, drop1]
+    }
   #features retained for further analysis
   features_otu = features_otu1[,!(colnames(features_otu1) %in% drop1)]
   dim(features_otu)

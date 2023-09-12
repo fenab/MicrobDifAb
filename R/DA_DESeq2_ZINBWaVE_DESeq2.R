@@ -1,5 +1,5 @@
 DA_DESeq2_ZINBWaVE_DESeq2 <- function( taxa_All_filt,taxa_NonZeroGroup, taxa_ZeroGroup, group,
-                                       taxadata, reduced=~1, normalization = c("GPRM","poscounts"))
+                                       taxadata, reduced=~1, normalization = c("GMPR","poscounts"))
 {
   #normalization = "GPRM"
   #Normalization
@@ -21,7 +21,7 @@ DA_DESeq2_ZINBWaVE_DESeq2 <- function( taxa_All_filt,taxa_NonZeroGroup, taxa_Zer
   sample_data(ps_all)$group <- as.factor(sample_data(ps_all)$group)
 
   #normalizing data
-  if(normalization == "GPRM") {
+  if(normalization == "GMPR") {
     size.factor=GMPR(OTUmatrix=data.frame(taxa_All_filt))
   } else {
     dds_all <- phyloseq_to_deseq2(ps_all, ~ group )
