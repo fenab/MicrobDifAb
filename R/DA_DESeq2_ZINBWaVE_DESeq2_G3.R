@@ -1,6 +1,7 @@
 
 DA_DESeq2_ZINBWaVE_DESeq2_G3 <- function( taxa_All_filt,taxa_NonZeroGroup=taxa_NonZeroGroup,
                                           taxa_ZeroGroup=taxa_ZeroGroup, group=group, ps_all=ps_all,
+                                       full_formula=full_formula,
                                        reduced=reduced, tb_tested=tb_tested,
                                        normalization = c("GMPR","poscounts"))
 {
@@ -8,9 +9,9 @@ DA_DESeq2_ZINBWaVE_DESeq2_G3 <- function( taxa_All_filt,taxa_NonZeroGroup=taxa_N
   #Normalization
 
   if(normalization == "GMPR") {
-    size.factor=GMPR(OTUmatrix=data.frame(taxa_All_filt))
+    size.factor=GMPR::GMPR(OTUmatrix=data.frame(taxa_All_filt))
   } else {
-    dds_all <- phyloseq_to_deseq2(ps_all, ~ N_StarvedvsC + P_StarvedvsC )
+    dds_all <- phyloseq_to_deseq2(ps_all, full_formula )
     dds_all <- estimateSizeFactors(dds_all, type="poscounts")
     size.factor <- dds_all@colData@listData$sizeFactor
   }
@@ -18,7 +19,7 @@ DA_DESeq2_ZINBWaVE_DESeq2_G3 <- function( taxa_All_filt,taxa_NonZeroGroup=taxa_N
   ### Taxa in the zero group
   ps_zs <- prune_taxa(colnames(taxa_ZeroGroup), ps_all)
 
-  dds <- phyloseq_to_deseq2(ps_zs, ~ N_StarvedvsC + P_StarvedvsC )
+  dds <- phyloseq_to_deseq2(ps_zs, full_formula )
   sizeFactors(dds) <- size.factor
 
   dds <- DESeq(dds, test="LRT", reduced = reduced,
@@ -63,9 +64,9 @@ DA_DESeq2_ZINBWaVE_DESeq2_G3 <- function( taxa_All_filt,taxa_NonZeroGroup=taxa_N
 
   #generating observation weights using ZINBWaVE.
 
-  dds_zinb <- phyloseq_to_deseq2(ps_nzs,  ~ N_StarvedvsC + P_StarvedvsC )
+  dds_zinb <- phyloseq_to_deseq2(ps_nzs, full_formula )
   dds_zinb <- zinbwave(dds_zinb,
-                       X="~ N_StarvedvsC + P_StarvedvsC",
+                       X=full_formula,
                        epsilon = 1e10,
                        verbose = FALSE,
                        K = 0,
@@ -76,7 +77,7 @@ DA_DESeq2_ZINBWaVE_DESeq2_G3 <- function( taxa_All_filt,taxa_NonZeroGroup=taxa_N
 
   #weights[weights <= 10^-6] = 10^-6
 
-  dds_zinb <- DESeqDataSet(dds_zinb, design = ~ N_StarvedvsC + P_StarvedvsC )
+  dds_zinb <- DESeqDataSet(dds_zinb, design = full_formula )
   #str(dds_zinb) <- estimateSizeFactors(dds_zinb, type="poscounts")
   sizeFactors(dds_zinb) <- size.factor
 
